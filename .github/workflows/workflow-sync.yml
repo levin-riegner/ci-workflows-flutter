@@ -17,7 +17,7 @@ env:
     test.workflow.yml
   # Repositories to Sync
   REPOSITORIES: |
-    levin-riegner/deleteme-ci-test@ci
+    levin-riegner/deleteme-ci-test
 
 jobs:
   Github_Workflow_Sync:
@@ -32,5 +32,5 @@ jobs:
           REPOSITORIES: ${{ env.REPOSITORIES }}
           WORKFLOW_FILES: ${{ env.WORKFLOW_FILES }}
           GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          PULL_REQUEST: true
+          PULL_REQUEST: ${{ env.PULL_REQUEST}}
           AUTO_CREATE_NEW_BRANCH: ${{ env.AUTO_CREATE_NEW_BRANCH }}
