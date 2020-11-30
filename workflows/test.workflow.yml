@@ -1,0 +1,36 @@
+name: Run Flutter Unit Tests
+
+on:
+ push:
+   branches:
+     - 'master'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # Basic Setup
+      - name: Checkout
+        uses: actions/checkout@v1
+      # EXTRA: Install SSH Key for private repository dependencies
+      - name: Install GitHub SSH Key
+        uses: webfactory/ssh-agent@v0.4.1
+        with:
+          ssh-private-key: ${{ secrets.GIT_SSH_KEY }}
+      # Flutter
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v1
+        with:
+          flutter-version: '1.22.0'
+          channel: 'stable'
+      - name: Get Flutter dependencies
+        run: |
+          flutter pub upgrade
+          flutter pub get
+      # Execute build_runner pub
+      - name: Execute build_runner Code Generation
+        run: flutter pub run build_runner build --delete-conflicting-outputs
+      # Run Unit Tests
+      - name: Run Unit Tests
+        run: flutter test

@@ -1,0 +1,130 @@
+name: Release Workflow - Upload Production builds to Playstore & Appstore Connect
+
+on:
+  push:
+    branches:
+      - 'release**'
+
+jobs:
+  release_android:
+    name: Android Release Workflow
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      # Basic Steup
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Setup Java
+        uses: actions/setup-java@v1
+        with:
+          java-version: 1.8
+      # Install SSH Key for private repository dependencies
+      - name: Install GitHub SSH Key
+        uses: webfactory/ssh-agent@v0.4.1
+        with:
+          ssh-private-key: ${{ secrets.GIT_SSH_KEY }}
+      # Flutter
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v1
+        with:
+          flutter-version: '$FLUTTER_VERSION'
+          channel: 'stable'
+        env: 
+          FLUTTER_VERSION: ${{ secrets.FLUTTER_VERSION }}
+      # Get Flutter Dependencies
+      - name: Get Flutter dependencies
+        run: |
+          flutter pub upgrade
+          flutter pub get
+      # Execute build_runner pub
+      - name: Execute build_runner Code Generation
+        run: flutter pub run build_runner build --delete-conflicting-outputs
+      # Fastlane Setup
+      - name: Setup Ruby 2.6
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 2.6
+      - name: Setup Fastlane
+        run: cd android && gem install bundler && bundle install && cd ..
+      # Decrypt Keystore
+      - name: Decrypt Keystore
+        id: keystore_file
+        uses: timheuer/base64-to-file@v1.0.3
+        with:
+          fileName: 'keystore.jks'
+          encodedString: ${{ secrets.KEYSTORE_BASE64 }}
+      # Decrypt Play Store Json Key
+      - name: Decrypt JSON Key
+        id: json_key_file
+        uses: timheuer/base64-to-file@v1.0.3
+        with:
+          fileName: 'json_key.json'
+          encodedString: ${{ secrets.GOOGLE_PLAY_JSON_KEY_BASE64 }}
+      # Run Flutter build
+      - name: Flutter Build
+        run: flutter build appbundle -t lib/main_prod.dart --flavor production --release
+        env:
+          KEYSTORE_FILE: ${{ steps.keystore_file.outputs.filePath }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+      # Upload Production build
+      - name: Upload Production Build
+        run: |
+          cd android
+          bundle exec fastlane playstore_release --env production is_flutter:true json_key:$JSON_KEY_FILE
+        env:
+          JSON_KEY_FILE: ${{ steps.json_key_file.outputs.filePath }}
+
+  release_ios:
+    name: iOS Release Workflow
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      # Basic Setup
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      # EXTRA: Install SSH Key for private repository dependencies
+      - name: Install GitHub SSH Key
+        uses: webfactory/ssh-agent@v0.4.1
+        with:
+          ssh-private-key: ${{ secrets.GIT_SSH_KEY }}
+      # Flutter
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v1
+        with:
+          flutter-version: '$FLUTTER_VERSION'
+          channel: 'stable'
+        env: 
+          FLUTTER_VERSION: ${{ secrets.FLUTTER_VERSION }}
+      # Fastlane Setup
+      - name: Setup Ruby 2.6
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 2.6
+      - name: Setup Fastlane
+        run: cd ios && gem install bundler && bundle install && cd ..
+      # Get Flutter Dependencies
+      - name: Get Flutter dependencies
+        run: |
+          flutter pub upgrade
+          flutter pub get
+      # Execute build_runner pub
+      - name: Execute build_runner Code Generation
+        run: flutter pub run build_runner build --delete-conflicting-outputs
+      # Upload to Appstore Connect
+      - name: Upload Production build
+        run: |
+          flutter build ios -t lib/main_prod.dart --flavor Production --release --no-codesign
+          cd ios
+          bundle exec fastlane testflight_release is_ci:true --env production
+        env:
+          MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+          FASTLANE_USER: ${{ secrets.FASTLANE_USER }}
+          FASTLANE_PASSWORD: ${{ secrets.FASTLANE_PASSWORD }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}

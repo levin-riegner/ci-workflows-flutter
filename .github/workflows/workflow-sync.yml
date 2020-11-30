@@ -5,10 +5,18 @@ on:
     branches:
       - master
 env:
+  # Run the Sync Action without pushing to repos
   DRY_RUN: false
-  REPOSITORIES: |
-  
+  # Commit files via Pull Request
+  PULL_REQUEST: true
+  # Files to Sync
   WORKFLOW_FILES: |
+    internal.workflow.yml
+    release.workflow.yml
+    test.workflow.yml
+  # Repositories to Sync
+  REPOSITORIES: |
+    levin-riegner/deleteme-ci-test@ci
 
 jobs:
   Github_Workflow_Sync:
@@ -23,3 +31,4 @@ jobs:
           REPOSITORIES: ${{ env.REPOSITORIES }}
           WORKFLOW_FILES: ${{ env.WORKFLOW_FILES }}
           GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          PULL_REQUEST: ${{ env.PULL_REQUEST}}
