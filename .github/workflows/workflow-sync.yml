@@ -9,6 +9,7 @@ env:
   DRY_RUN: false
   # Commit files via Pull Request
   PULL_REQUEST: true
+  AUTO_CREATE_NEW_BRANCH: true
   # Files to Sync
   WORKFLOW_FILES: |
     internal.workflow.yml
@@ -32,3 +33,4 @@ jobs:
           WORKFLOW_FILES: ${{ env.WORKFLOW_FILES }}
           GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           PULL_REQUEST: ${{ env.PULL_REQUEST}}
+          AUTO_CREATE_NEW_BRANCH: ${{ env.AUTO_CREATE_NEW_BRANCH }}
