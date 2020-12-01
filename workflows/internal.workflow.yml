@@ -6,16 +6,11 @@ on:
       - 'master' #'internal**'
 
 jobs:
-  internal_android:
-    name: Android Internal Workflow
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+
+  config:
+    outputs:
+      dotenv: ${{ steps.dotenv.outputs }}
     steps:
-      # Checkout
-      - name: Checkout
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
       # Load dotenv config
       - name: Load dotenv config
         uses: falti/dotenv-action@v0.2.4
@@ -23,6 +18,23 @@ jobs:
         with:
           path: ./.github/workflows/.env
           log-variables: true
+
+  internal_android:
+    name: Android Internal Workflow
+    needs: config
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      # Output dotenv config
+      - name: Output dotenv flutter version
+        run: "echo $FLUTTER_VERSION"
+        env:
+          FLUTTER_VERSION: ${{ needs.config.outputs.dotenv.FLUTTER_VERSION }}
+      # Checkout
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
       # Install SDKs
       - name: Setup Java
         uses: actions/setup-java@v1
