@@ -3,20 +3,20 @@ name: Internal Workflow - Uploads QA build
 on:
   push:
     branches:
-      - 'master' #'internal**'
+      - 'internal**'
 
 jobs:
-
+  # Config Job
   config:
-    name: Load dotenv config
+    name: Load dotenv Config
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
+      # dotenv variables
       FLUTTER_VERSION: ${{ steps.dotenv.outputs.FLUTTER_VERSION }}
       ANDROID_SUPPORTED: ${{ steps.dotenv.outputs.ANDROID_SUPPORTED }}
       IOS_SUPPORTED: ${{ steps.dotenv.outputs.IOS_SUPPORTED }}
     steps:
-      # Checkout
       - name: Checkout
         uses: actions/checkout@v2
       # Load dotenv config
@@ -26,7 +26,7 @@ jobs:
         with:
           path: ./.github/workflows/.env
           log-variables: true
-
+  # Android Job
   internal_android:
     name: Android Internal Workflow
     needs: config
@@ -34,16 +34,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      # Output dotenv config
-      - name: Output dotenv flutter version
-        run: "echo $FLUTTER_VERSION"
-        env:
-          FLUTTER_VERSION: ${{ needs.config.outputs.FLUTTER_VERSION }}
-      # Checkout
       - name: Checkout
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+      # SSH Key for private repository dependencies
+      - name: Install GitHub SSH Key
+        uses: webfactory/ssh-agent@v0.4.1
+        with:
+          ssh-private-key: ${{ secrets.GIT_SSH_KEY }}
       # Install SDKs
       - name: Setup Java
         uses: actions/setup-java@v1
@@ -54,17 +53,11 @@ jobs:
         with:
           flutter-version: ${{ needs.config.outputs.FLUTTER_VERSION }}
           channel: 'stable'
-      # Install SSH Key for private repository dependencies
-      - name: Install GitHub SSH Key
-        uses: webfactory/ssh-agent@v0.4.1
-        with:
-          ssh-private-key: ${{ secrets.GIT_SSH_KEY }}
-      # Get Flutter Dependencies
+      # Flutter project build
       - name: Get Flutter dependencies
         run: |
           flutter pub upgrade
           flutter pub get
-      # Execute build_runner pub
       - name: Execute build_runner Code Generation
         run: flutter pub run build_runner build --delete-conflicting-outputs
       # Fastlane Setup
@@ -93,7 +86,7 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
-
+  # iOS Job
   internal_ios:
     name: iOS Internal Workflow
     needs: config
@@ -101,24 +94,28 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 60
     steps:
-      # Basic Setup
       - name: Checkout
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
-      # EXTRA: Install SSH Key for private repository dependencies
+      # SSH Key for private repository dependencies
       - name: Install GitHub SSH Key
         uses: webfactory/ssh-agent@v0.4.1
         with:
           ssh-private-key: ${{ secrets.GIT_SSH_KEY }}
-      # Flutter
+      # Install SDKs
       - name: Setup Flutter
         uses: subosito/flutter-action@v1
         with:
-          flutter-version: '$FLUTTER_VERSION'
+          flutter-version: ${{ needs.config.outputs.FLUTTER_VERSION }}
           channel: 'stable'
-        env: 
-          FLUTTER_VERSION: ${{ steps.dotenv.outputs.FLUTTER_VERSION }}
+      # Flutter Project build
+      - name: Get Flutter dependencies
+        run: |
+          flutter pub upgrade
+          flutter pub get
+      - name: Execute build_runner Code Generation
+        run: flutter pub run build_runner build --delete-conflicting-outputs
       # Fastlane Setup
       - name: Setup Ruby 2.6
         uses: ruby/setup-ruby@v1
@@ -126,19 +123,7 @@ jobs:
           ruby-version: 2.6
       - name: Setup Fastlane
         run: cd ios && gem install bundler && bundle install && cd ..
-      # Get Flutter Dependencies
-      - name: Get Flutter dependencies
-        run: |
-          flutter pub upgrade
-          flutter pub get
-      # Execute build_runner pub
-      - name: Execute build_runner Code Generation
-        run: flutter pub run build_runner build --delete-conflicting-outputs
       # Upload to Appstore Connect
-      # - MATCH_GIT_BASIC_AUTHORIZATION: Generated with "username:token" encoded in Base64
-      # - FASTLANE_USER/PASSWORD: The account uploading builds to Testflight
-      # - MATCH_PASSWORD: Certificates password
-      # - Using qa@levinriegner.com to upload builds to Testflight
       - name: Upload QA build
         run: |
           flutter build ios -t lib/main_qa.dart --flavor QA --release --no-codesign

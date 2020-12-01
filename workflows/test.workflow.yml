@@ -6,29 +6,49 @@ on:
      - 'master'
 
 jobs:
-  test:
+  # Config Job
+  config:
+    name: Load dotenv Config
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    outputs:
+      # dotenv variables
+      FLUTTER_VERSION: ${{ steps.dotenv.outputs.FLUTTER_VERSION }}
+      ANDROID_SUPPORTED: ${{ steps.dotenv.outputs.ANDROID_SUPPORTED }}
+      IOS_SUPPORTED: ${{ steps.dotenv.outputs.IOS_SUPPORTED }}
     steps:
-      # Basic Setup
+      - name: Checkout
+        uses: actions/checkout@v2
+      # Load dotenv config
+      - name: Load dotenv config
+        uses: falti/dotenv-action@v0.2.4
+        id: dotenv
+        with:
+          path: ./.github/workflows/.env
+          log-variables: true
+  test:
+    runs-on: ubuntu-latest
+    needs: config
+    timeout-minutes: 5
+    steps:
       - name: Checkout
         uses: actions/checkout@v1
-      # EXTRA: Install SSH Key for private repository dependencies
+      # SSH Key for private repository dependencies
       - name: Install GitHub SSH Key
         uses: webfactory/ssh-agent@v0.4.1
         with:
           ssh-private-key: ${{ secrets.GIT_SSH_KEY }}
-      # Flutter
+      # Install Flutter
       - name: Setup Flutter
         uses: subosito/flutter-action@v1
         with:
-          flutter-version: '1.22.0'
+          flutter-version: ${{ needs.config.outputs.FLUTTER_VERSION }}
           channel: 'stable'
+      # Flutter project build
       - name: Get Flutter dependencies
         run: |
           flutter pub upgrade
           flutter pub get
-      # Execute build_runner pub
       - name: Execute build_runner Code Generation
         run: flutter pub run build_runner build --delete-conflicting-outputs
       # Run Unit Tests

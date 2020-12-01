@@ -5,22 +5,22 @@ on:
     branches:
       - master
 env:
-  # Run the Sync Action without pushing to repos
-  DRY_RUN: false
-  # Commit files via Pull Request
-  PULL_REQUEST: true
-  AUTO_CREATE_NEW_BRANCH: true
+  # Repositories to Sync
+  REPOSITORIES: |
+    levin-riegner/deleteme-ci-test
   # Files to Sync
   WORKFLOW_FILES: |
     internal.workflow.yml
     release.workflow.yml
     test.workflow.yml
-  # Repositories to Sync
-  REPOSITORIES: |
-    levin-riegner/deleteme-ci-test
+  # Run the Sync Action without pushing to repos
+  DRY_RUN: false
+  # Commit files via Pull Request
+  PULL_REQUEST: true
+  AUTO_CREATE_NEW_BRANCH: true
 
 jobs:
-  Github_Workflow_Sync:
+  github_workflow_sync:
     runs-on: ubuntu-latest
     steps:
       - name: Fetching Local Repository
