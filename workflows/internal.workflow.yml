@@ -11,37 +11,35 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      # Basic Steup
+      # Checkout
       - name: Checkout
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
-      - name: Setup Java
-        uses: actions/setup-java@v1
-        with:
-          java-version: 1.8
       # Load dotenv config
       - name: Load dotenv config
         uses: falti/dotenv-action@v0.2.4
         id: dotenv
         with:
           path: ./.github/workflows/.env
-      - run: echo "Flutter version = $FLUTTER_VERSION"
-        env:
-          FLUTTER_VERSION: ${{ steps.dotenv.outputs.FLUTTER_VERSION }} | 1.22.0
-      # Install SSH Key for private repository dependencies
-      - name: Install GitHub SSH Key
-        uses: webfactory/ssh-agent@v0.4.1
+          log-variables: true
+      # Install SDKs
+      - name: Setup Java
+        uses: actions/setup-java@v1
         with:
-          ssh-private-key: ${{ secrets.GIT_SSH_KEY }}
-      # Flutter
+          java-version: 1.8
       - name: Setup Flutter
         uses: subosito/flutter-action@v1
         with:
           flutter-version: '$FLUTTER_VERSION'
           channel: 'stable'
         env: 
-          FLUTTER_VERSION: ${{ steps.dotenv.outputs.FLUTTER_VERSION }} | 1.22.0
+          FLUTTER_VERSION: ${{ steps.dotenv.outputs.FLUTTER_VERSION }}
+      # Install SSH Key for private repository dependencies
+      - name: Install GitHub SSH Key
+        uses: webfactory/ssh-agent@v0.4.1
+        with:
+          ssh-private-key: ${{ secrets.GIT_SSH_KEY }}
       # Get Flutter Dependencies
       - name: Get Flutter dependencies
         run: |
