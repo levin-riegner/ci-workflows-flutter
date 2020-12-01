@@ -13,7 +13,8 @@ jobs:
     timeout-minutes: 5
     outputs:
       FLUTTER_VERSION: ${{ steps.dotenv.outputs.FLUTTER_VERSION }}
-      #ANDROID_SUPPORTED: ${{ steps.dotenv.outputs.ANDROID_SUPPORTED }}
+      ANDROID_SUPPORTED: ${{ steps.dotenv.outputs.ANDROID_SUPPORTED }}
+      IOS_SUPPORTED: ${{ steps.dotenv.outputs.IOS_SUPPORTED }}
     steps:
       # Checkout
       - name: Checkout
