@@ -24,7 +24,8 @@ jobs:
       - name: Load dotenv config
         uses: falti/dotenv-action@v0.2.4
         id: dotenv
-        path: ./.github/workflows/.env
+        with:
+          path: ./.github/workflows/.env
       - run: echo "Flutter version = $FLUTTER_VERSION"
         with:
           FLUTTER_VERSION: ${{ steps.dotenv.outputs.FLUTTER_VERSION }} | 1.22.0
