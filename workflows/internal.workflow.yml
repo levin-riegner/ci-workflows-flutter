@@ -8,6 +8,9 @@ on:
 jobs:
 
   config:
+    name: Load dotenv config
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       dotenv: ${{ steps.dotenv.outputs }}
     steps:
