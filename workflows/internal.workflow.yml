@@ -30,7 +30,7 @@ jobs:
   internal_android:
     name: Android Internal Workflow
     needs: config
-    if: needs.config.outputs.ANDROID_SUPPORTED != false
+    if: needs.config.outputs.ANDROID_SUPPORTED == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -52,10 +52,8 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v1
         with:
-          flutter-version: '$FLUTTER_VERSION'
+          flutter-version: ${{ needs.config.outputs.FLUTTER_VERSION }}
           channel: 'stable'
-        env: 
-          FLUTTER_VERSION: ${{ needs.config.outputs.FLUTTER_VERSION }}
       # Install SSH Key for private repository dependencies
       - name: Install GitHub SSH Key
         uses: webfactory/ssh-agent@v0.4.1
@@ -99,7 +97,7 @@ jobs:
   internal_ios:
     name: iOS Internal Workflow
     needs: config
-    if: needs.config.outputs.IOS_SUPPORTED != false
+    if: needs.config.outputs.IOS_SUPPORTED == 'true'
     runs-on: macos-latest
     timeout-minutes: 60
     steps:
