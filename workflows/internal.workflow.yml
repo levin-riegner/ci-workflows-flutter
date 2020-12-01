@@ -3,7 +3,7 @@ name: Internal Workflow - Uploads QA build
 on:
   push:
     branches:
-      - 'internal**'
+      - 'master' #'internal**'
 
 jobs:
   internal_android:
@@ -20,7 +20,15 @@ jobs:
         uses: actions/setup-java@v1
         with:
           java-version: 1.8
-      # EXTRA: Install SSH Key for private repository dependencies
+      # Load dotenv config
+      - name: Load dotenv config
+        uses: falti/dotenv-action@v0.2.4
+        id: dotenv
+        path: ./.github/workflows/.env
+      - run: echo "Flutter version = $FLUTTER_VERSION"
+        with:
+          FLUTTER_VERSION: ${{ steps.dotenv.outputs.FLUTTER_VERSION }} | 1.22.0
+      # Install SSH Key for private repository dependencies
       - name: Install GitHub SSH Key
         uses: webfactory/ssh-agent@v0.4.1
         with:
@@ -32,7 +40,7 @@ jobs:
           flutter-version: '$FLUTTER_VERSION'
           channel: 'stable'
         env: 
-          FLUTTER_VERSION: ${{ secrets.FLUTTER_VERSION }}
+          FLUTTER_VERSION: ${{ steps.dotenv.outputs.FLUTTER_VERSION }} | 1.22.0
       # Get Flutter Dependencies
       - name: Get Flutter dependencies
         run: |
@@ -90,7 +98,7 @@ jobs:
           flutter-version: '$FLUTTER_VERSION'
           channel: 'stable'
         env: 
-          FLUTTER_VERSION: ${{ secrets.FLUTTER_VERSION }}
+          FLUTTER_VERSION: ${{ steps.dotenv.outputs.FLUTTER_VERSION }}
       # Fastlane Setup
       - name: Setup Ruby 2.6
         uses: ruby/setup-ruby@v1
