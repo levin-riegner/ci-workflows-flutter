@@ -12,7 +12,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
-      dotenv: ${{ steps.dotenv.outputs }}
+      FLUTTER_VERSION: ${{ steps.dotenv.outputs.FLUTTER_VERSION }}
+      #ANDROID_SUPPORTED: ${{ steps.dotenv.outputs.ANDROID_SUPPORTED }}
     steps:
       # Checkout
       - name: Checkout
@@ -35,7 +36,7 @@ jobs:
       - name: Output dotenv flutter version
         run: "echo $FLUTTER_VERSION"
         env:
-          FLUTTER_VERSION: ${{ needs.config.outputs.dotenv.FLUTTER_VERSION }}
+          FLUTTER_VERSION: ${{ needs.config.outputs.FLUTTER_VERSION }}
       # Checkout
       - name: Checkout
         uses: actions/checkout@v2
