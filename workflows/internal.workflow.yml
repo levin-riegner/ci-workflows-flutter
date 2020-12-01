@@ -27,7 +27,7 @@ jobs:
         with:
           path: ./.github/workflows/.env
       - run: echo "Flutter version = $FLUTTER_VERSION"
-        with:
+        env:
           FLUTTER_VERSION: ${{ steps.dotenv.outputs.FLUTTER_VERSION }} | 1.22.0
       # Install SSH Key for private repository dependencies
       - name: Install GitHub SSH Key
