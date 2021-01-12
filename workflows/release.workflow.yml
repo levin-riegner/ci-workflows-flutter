@@ -16,6 +16,8 @@ jobs:
       FLUTTER_VERSION: ${{ steps.dotenv.outputs.FLUTTER_VERSION }}
       ANDROID_SUPPORTED: ${{ steps.dotenv.outputs.ANDROID_SUPPORTED }}
       IOS_SUPPORTED: ${{ steps.dotenv.outputs.IOS_SUPPORTED }}
+      RUBY_VERSION: ${{ steps.dotenv.outputs.RUBY_VERSION }}
+      JAVA_VERSION: ${{ steps.dotenv.outputs.JAVA_VERSION }}
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -61,10 +63,10 @@ jobs:
       - name: Execute build_runner Code Generation
         run: flutter pub run build_runner build --delete-conflicting-outputs
       # Fastlane Setup
-      - name: Setup Ruby 2.6
+      - name: Setup Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: 2.6
+          ruby-version: ${{ needs.config.outputs.RUBY_VERSION }}
       - name: Setup Fastlane
         run: cd android && gem install bundler && bundle install && cd ..
       # Decrypt Keystore
@@ -125,10 +127,10 @@ jobs:
       - name: Execute build_runner Code Generation
         run: flutter pub run build_runner build --delete-conflicting-outputs
       # Fastlane Setup
-      - name: Setup Ruby 2.6
+      - name: Setup Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: 2.6
+          ruby-version: ${{ needs.config.outputs.RUBY_VERSION }}
       - name: Setup Fastlane
         run: cd ios && gem install bundler && bundle install && cd ..
       # Upload to Appstore Connect
