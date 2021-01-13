@@ -7,7 +7,7 @@ on:
 env:
   # Repositories to Sync
   REPOSITORIES: |
-    levin-riegner/deleteme-ci-test
+    levin-riegner/candid-flutter
   # Files to Sync
   WORKFLOW_FILES: |
     internal.workflow.yml
