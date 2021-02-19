@@ -8,6 +8,7 @@ env:
   # Repositories to Sync
   REPOSITORIES: |
     levin-riegner/candid-flutter
+    CameronLambProductions/alxr-flutter
   # Files to Sync
   WORKFLOW_FILES: |
     internal.workflow.yml
