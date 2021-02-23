@@ -5,6 +5,10 @@ on:
     branches:
       - 'internal**'
 
+env:
+  # Self-hosted OS (needed to install Ruby)
+  ImageOS: macos1015
+
 jobs:
   # Config Job
   config:
