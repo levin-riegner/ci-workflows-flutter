@@ -9,7 +9,8 @@ jobs:
   # Config Job
   config:
     name: Load dotenv Config
-    runs-on: ubuntu-latest
+    # WAS: ubuntu-latest
+    runs-on: self-hosted
     timeout-minutes: 5
     outputs:
       # dotenv variables
@@ -27,7 +28,8 @@ jobs:
           path: ./.github/workflows/.env
           log-variables: true
   test:
-    runs-on: ubuntu-latest
+    # WAS: ubuntu-latest
+    runs-on: self-hosted
     needs: config
     timeout-minutes: 5
     steps:
