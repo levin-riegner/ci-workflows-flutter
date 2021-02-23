@@ -23,7 +23,7 @@ jobs:
         uses: actions/checkout@v2
       # Load dotenv config
       - name: Load dotenv config
-        uses: falti/dotenv-action@v0.2.4
+        uses: falti/dotenv-action@v0.2.5
         id: dotenv
         with:
           path: ./.github/workflows/.env
@@ -42,7 +42,7 @@ jobs:
           fetch-depth: 0
       # SSH Key for private repository dependencies
       - name: Install GitHub SSH Key
-        uses: webfactory/ssh-agent@v0.4.1
+        uses: webfactory/ssh-agent@v0.5.0
         with:
           ssh-private-key: ${{ secrets.GIT_SSH_KEY }}
       # Install SDKs
@@ -72,14 +72,14 @@ jobs:
       # Decrypt Keystore
       - name: Decrypt Keystore
         id: keystore_file
-        uses: timheuer/base64-to-file@v1.0.3
+        uses: timheuer/base64-to-file@v1.0.4
         with:
           fileName: 'keystore.jks'
           encodedString: ${{ secrets.KEYSTORE_BASE64 }}
       # Decrypt Play Store Json Key
       - name: Decrypt JSON Key
         id: json_key_file
-        uses: timheuer/base64-to-file@v1.0.3
+        uses: timheuer/base64-to-file@v1.0.4
         with:
           fileName: 'json_key.json'
           encodedString: ${{ secrets.GOOGLE_PLAY_JSON_KEY_BASE64 }}
@@ -110,7 +110,7 @@ jobs:
           fetch-depth: 0
       # SSH Key for private repository dependencies
       - name: Install GitHub SSH Key
-        uses: webfactory/ssh-agent@v0.4.1
+        uses: webfactory/ssh-agent@v0.5.0
         with:
           ssh-private-key: ${{ secrets.GIT_SSH_KEY }}
       # Install SDKs
