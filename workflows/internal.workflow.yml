@@ -137,9 +137,10 @@ jobs:
         run: |
           flutter build ios -t lib/main_qa.dart --flavor QA --release --no-codesign
           cd ios
-          bundle exec fastlane testflight_release is_ci:true --env qa
+          bundle exec fastlane testflight_release is_ci:true --env qa appstore_key:$APPSTORE_KEY_BASE64
         env:
           MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
           FASTLANE_USER: ${{ secrets.FASTLANE_USER }}
           FASTLANE_PASSWORD: ${{ secrets.FASTLANE_PASSWORD }}
           MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          APPSTORE_KEY_BASE64: ${{ secrets.APPSTORE_KEY_BASE64 }}
