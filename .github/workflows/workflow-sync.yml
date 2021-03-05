@@ -9,6 +9,7 @@ env:
   REPOSITORIES: |
     levin-riegner/candid-flutter
     CameronLambProductions/alxr-flutter
+    levin-riegner/avenew-flutter
   # Files to Sync
   WORKFLOW_FILES: |
     internal.workflow.yml
