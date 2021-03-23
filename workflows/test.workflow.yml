@@ -3,6 +3,7 @@ name: Run Flutter Unit Tests
 on:
  push:
    branches:
+     - '*'
      - '!internal**'
      - '!release**'
 
