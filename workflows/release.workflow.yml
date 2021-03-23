@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - 'release**'
+  workflow_dispatch:
 
 env:
   # Self-hosted OS (needed to install Ruby)
@@ -48,7 +49,7 @@ jobs:
           fetch-depth: 0
       # SSH Key for private repository dependencies
       - name: Install GitHub SSH Key
-        uses: webfactory/ssh-agent@v0.5.0
+        uses: webfactory/ssh-agent@v0.5.1
         with:
           ssh-private-key: ${{ secrets.GIT_SSH_KEY }}
       # Install SDKs
@@ -117,7 +118,7 @@ jobs:
           fetch-depth: 0
       # SSH Key for private repository dependencies
       - name: Install GitHub SSH Key
-        uses: webfactory/ssh-agent@v0.5.0
+        uses: webfactory/ssh-agent@v0.5.1
         with:
           ssh-private-key: ${{ secrets.GIT_SSH_KEY }}
       # Install SDKs
@@ -143,6 +144,7 @@ jobs:
       # Upload to Appstore Connect
       - name: Upload Production build
         run: |
+          pod repo update
           flutter build ios -t lib/main_prod.dart --flavor Production --release --no-codesign
           cd ios
           bundle exec fastlane testflight_release is_ci:true --env production appstore_key:$APPSTORE_KEY_BASE64
