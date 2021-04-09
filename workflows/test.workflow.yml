@@ -33,7 +33,7 @@ jobs:
     # WAS: ubuntu-latest
     runs-on: self-hosted
     needs: config
-    timeout-minutes: 5
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v1
