@@ -3,9 +3,10 @@ name: Run Flutter Unit Tests
 on:
  push:
    branches:
-     - '*'
+     - '**'
      - '!internal**'
      - '!release**'
+     - '!file-sync**'
 
 jobs:
   # Config Job
