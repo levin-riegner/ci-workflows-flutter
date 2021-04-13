@@ -49,7 +49,7 @@ jobs:
           fetch-depth: 0
       # SSH Key for private repository dependencies
       - name: Install GitHub SSH Key
-        uses: webfactory/ssh-agent@v0.5.1
+        uses: webfactory/ssh-agent@v0.5.2
         with:
           ssh-private-key: ${{ secrets.GIT_SSH_KEY }}
       # Install SDKs
@@ -110,7 +110,7 @@ jobs:
           fetch-depth: 0
       # SSH Key for private repository dependencies
       - name: Install GitHub SSH Key
-        uses: webfactory/ssh-agent@v0.5.1
+        uses: webfactory/ssh-agent@v0.5.2
         with:
           ssh-private-key: ${{ secrets.GIT_SSH_KEY }}
       # Install SDKs

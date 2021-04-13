@@ -1,12 +1,13 @@
 name: Run Flutter Unit Tests
 
 on:
- push:
-   branches:
-     - '**'
-     - '!internal**'
-     - '!release**'
-     - '!file-sync**'
+  push:
+    branches:
+      - '**'
+      - '!internal**'
+      - '!release**'
+      - '!file-sync**'
+  workflow_dispatch:
 
 jobs:
   # Config Job
@@ -40,7 +41,7 @@ jobs:
         uses: actions/checkout@v1
       # SSH Key for private repository dependencies
       - name: Install GitHub SSH Key
-        uses: webfactory/ssh-agent@v0.5.0
+        uses: webfactory/ssh-agent@v0.5.2
         with:
           ssh-private-key: ${{ secrets.GIT_SSH_KEY }}
       # Install Flutter
