@@ -24,6 +24,7 @@ jobs:
       IOS_SUPPORTED: ${{ steps.dotenv.outputs.IOS_SUPPORTED }}
       RUBY_VERSION: ${{ steps.dotenv.outputs.RUBY_VERSION }}
       JAVA_VERSION: ${{ steps.dotenv.outputs.JAVA_VERSION }}
+      IS_FLUTTER: ${{ steps.dotenv.outputs.IS_FLUTTER }}
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -39,8 +40,7 @@ jobs:
     name: Android Release Workflow
     needs: config
     if: needs.config.outputs.ANDROID_SUPPORTED == 'true'
-    # WAS: ubuntu-latest
-    runs-on: self-hosted
+    runs-on: self-hosted # WAS: ubuntu-latest
     timeout-minutes: 30
     steps:
       - name: Checkout
@@ -52,30 +52,37 @@ jobs:
         uses: webfactory/ssh-agent@v0.5.2
         with:
           ssh-private-key: ${{ secrets.GIT_SSH_KEY }}
-      # Install SDKs
+      # Install Java
       - name: Setup Java
         uses: actions/setup-java@v1
         with:
-          java-version: 1.8
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v1
-        with:
-          flutter-version: ${{ needs.config.outputs.FLUTTER_VERSION }}
-          channel: 'stable'
-      # Flutter project build
-      - name: Get Flutter dependencies
-        run: |
-          flutter pub upgrade
-          flutter pub get
-      - name: Execute build_runner Code Generation
-        run: flutter pub run build_runner build --delete-conflicting-outputs
+          java-version: ${{ needs.config.outputs.JAVA_VERSION }}
       # Fastlane Setup
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: ${{ needs.config.outputs.RUBY_VERSION }}
       - name: Setup Fastlane
-        run: cd android && gem install bundler && bundle install && cd ..
+        run: |
+          if [ "${{ needs.config.outputs.IS_FLUTTER }}" == "true" ]; then
+            cd android
+          fi
+          gem install bundler
+          bundle install
+      # Install Flutter
+      - if: needs.config.outputs.IS_FLUTTER == 'true'
+        name: Setup Flutter
+        uses: subosito/flutter-action@v1
+        with:
+          flutter-version: ${{ needs.config.outputs.FLUTTER_VERSION }}
+          channel: 'stable'
+      # Flutter Dependencies
+      - if: needs.config.outputs.IS_FLUTTER == 'true'
+        name: Flutter dependencies & Code Generation
+        run: |
+          flutter pub upgrade
+          flutter pub get
+          flutter pub run build_runner build --delete-conflicting-outputs
       # Decrypt Keystore
       - name: Decrypt Keystore
         id: keystore_file
@@ -90,12 +97,16 @@ jobs:
         with:
           fileName: 'json_key.json'
           encodedString: ${{ secrets.GOOGLE_PLAY_JSON_KEY_BASE64 }}
-      # Upload Production build
-      - name: Upload Production Build
-        run: |
-          flutter build appbundle -t lib/main_prod.dart --flavor production --release
-          cd android
-          bundle exec fastlane playstore_release --env production is_flutter:true json_key:$JSON_KEY_FILE
+      # Flutter build
+      - if: needs.config.outputs.IS_FLUTTER == 'true'
+        name: Flutter build (Bundle)
+        run: flutter build appbundle -t lib/${entry_file}.dart --flavor ${flavor} --release 
+        env:
+          entry_file: main_prod
+          flavor: production
+      # Upload to Playstore
+      - name: Upload To Playstore
+        run: bundle exec fastlane playstore_release --env $environment is_flutter:$is_flutter json_key:$JSON_KEY_FILE
         env:
           KEYSTORE_FILE: ${{ steps.keystore_file.outputs.filePath }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
@@ -103,13 +114,33 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
           JSON_KEY_FILE: ${{ steps.json_key_file.outputs.filePath }}
+          environment: production
+          is_flutter: ${{ needs.config.outputs.IS_FLUTTER }}
+      # Flutter build
+      - if: needs.config.outputs.IS_FLUTTER == 'true'
+        name: Flutter build (APK)
+        run: flutter build apk -t lib/${entry_file}.dart --flavor ${flavor} --release 
+        env:
+          entry_file: main_prod
+          flavor: production
+      # Upload to Firebase
+      - name: Upload To Firebase
+        run: bundle exec fastlane internal_release --env $environment is_flutter:$is_flutter
+        env:
+          KEYSTORE_FILE: ${{ steps.keystore_file.outputs.filePath }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          JSON_KEY_FILE: ${{ steps.json_key_file.outputs.filePath }}
+          environment: production
+          is_flutter: ${{ needs.config.outputs.IS_FLUTTER }}
   # iOS Job
   release_ios:
     name: iOS Release Workflow
     needs: config
     if: needs.config.outputs.IOS_SUPPORTED == 'true'
-    # WAS: macos-latest
-    runs-on: self-hosted
+    runs-on: self-hosted # WAS: macos-latest
     timeout-minutes: 60
     steps:
       - name: Checkout
@@ -121,36 +152,49 @@ jobs:
         uses: webfactory/ssh-agent@v0.5.2
         with:
           ssh-private-key: ${{ secrets.GIT_SSH_KEY }}
-      # Install SDKs
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v1
-        with:
-          flutter-version: ${{ needs.config.outputs.FLUTTER_VERSION }}
-          channel: 'stable'
-      # Flutter Project build
-      - name: Get Flutter dependencies
-        run: |
-          flutter pub upgrade
-          flutter pub get
-      - name: Execute build_runner Code Generation
-        run: flutter pub run build_runner build --delete-conflicting-outputs
       # Fastlane Setup
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: ${{ needs.config.outputs.RUBY_VERSION }}
       - name: Setup Fastlane
-        run: cd ios && gem install bundler && bundle install && cd ..
+        run: |
+          if [ "${{ needs.config.outputs.IS_FLUTTER }}" == "true" ]; then
+            cd ios
+          fi
+          gem install bundler
+          bundle install
+      # Install Flutter
+      - if: needs.config.outputs.IS_FLUTTER == 'true'
+        name: Setup Flutter
+        uses: subosito/flutter-action@v1
+        with:
+          flutter-version: ${{ needs.config.outputs.FLUTTER_VERSION }}
+          channel: 'stable'
+      # Flutter Dependencies
+      - if: needs.config.outputs.IS_FLUTTER == 'true'
+        name: Flutter dependencies & Code Generation
+        run: |
+          flutter pub upgrade
+          flutter pub get
+          flutter pub run build_runner build --delete-conflicting-outputs
+      # Pod repo update
+      - name: Pod Repo update
+        run: pod repo update
+      # Flutter build
+      - if: needs.config.outputs.IS_FLUTTER == 'true'
+        name: Flutter build
+        run: flutter build ios -t lib/${entry_file}.dart --flavor ${flavor} --release --no-codesign
+        env:
+          entry_file: main_prod
+          flavor: Production
       # Upload to Appstore Connect
       - name: Upload Production build
-        run: |
-          pod repo update
-          flutter build ios -t lib/main_prod.dart --flavor Production --release --no-codesign
-          cd ios
-          bundle exec fastlane testflight_release is_ci:true --env production appstore_key:$APPSTORE_KEY_BASE64
+        run: bundle exec fastlane testflight_release is_ci:true --env $environment appstore_key:$APPSTORE_KEY_BASE64
         env:
           MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
           FASTLANE_USER: ${{ secrets.FASTLANE_USER }}
           FASTLANE_PASSWORD: ${{ secrets.FASTLANE_PASSWORD }}
           MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
           APPSTORE_KEY_BASE64: ${{ secrets.APPSTORE_KEY_BASE64 }}
+          environment: production
