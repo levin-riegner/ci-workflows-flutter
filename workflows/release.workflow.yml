@@ -106,7 +106,11 @@ jobs:
           flavor: production
       # Upload to Playstore
       - name: Upload To Playstore
-        run: bundle exec fastlane playstore_release --env $environment is_flutter:$is_flutter json_key:$JSON_KEY_FILE
+        run: |
+          if [ "${{ needs.config.outputs.IS_FLUTTER }}" == "true" ]; then
+            cd android
+          fi
+          bundle exec fastlane playstore_release --env $environment is_flutter:$is_flutter json_key:$JSON_KEY_FILE
         env:
           KEYSTORE_FILE: ${{ steps.keystore_file.outputs.filePath }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
@@ -121,6 +125,10 @@ jobs:
         name: Flutter build (APK)
         run: flutter build apk -t lib/${entry_file}.dart --flavor ${flavor} --release 
         env:
+          KEYSTORE_FILE: ${{ steps.keystore_file.outputs.filePath }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           entry_file: main_prod
           flavor: production
       # Upload to Firebase
@@ -190,7 +198,11 @@ jobs:
           flavor: Production
       # Upload to Appstore Connect
       - name: Upload Production build
-        run: bundle exec fastlane testflight_release is_ci:true --env $environment appstore_key:$APPSTORE_KEY_BASE64
+        run: |
+          if [ "${{ needs.config.outputs.IS_FLUTTER }}" == "true" ]; then
+            cd ios
+          fi
+          bundle exec fastlane testflight_release is_ci:true --env $environment appstore_key:$APPSTORE_KEY_BASE64
         env:
           MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
           FASTLANE_USER: ${{ secrets.FASTLANE_USER }}
