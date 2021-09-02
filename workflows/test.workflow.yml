@@ -4,8 +4,8 @@ on:
   push:
     branches:
       - '**'
-      - '!internal**'
-      - '!release**'
+      - '!internal/**'
+      - '!release/**'
       - '!file-sync**'
   workflow_dispatch:
 
@@ -43,7 +43,7 @@ jobs:
         uses: actions/checkout@v1
       # SSH Key for private repository dependencies
       - name: Install GitHub SSH Key
-        uses: webfactory/ssh-agent@v0.5.2
+        uses: webfactory/ssh-agent@v0.5.3
         with:
           ssh-private-key: ${{ secrets.GIT_SSH_KEY }}
       # Install Flutter
@@ -53,12 +53,10 @@ jobs:
           flutter-version: ${{ needs.config.outputs.FLUTTER_VERSION }}
           channel: 'stable'
       # Flutter project build
-      - name: Get Flutter dependencies
+      - name: Flutter dependencies & Code Generation
         run: |
-          flutter pub upgrade
           flutter pub get
-      - name: Execute build_runner Code Generation
-        run: flutter pub run build_runner build --delete-conflicting-outputs
+          flutter pub run build_runner build --delete-conflicting-outputs
       # Run Unit Tests
       - name: Run Unit Tests
         run: flutter test

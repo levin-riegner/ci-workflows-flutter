@@ -3,7 +3,7 @@ name: Release Workflow - Upload Production builds to Playstore & Appstore Connec
 on:
   push:
     branches:
-      - 'release**'
+      - 'release/**'
   workflow_dispatch:
 
 env:
@@ -49,7 +49,7 @@ jobs:
           fetch-depth: 0
       # SSH Key for private repository dependencies
       - name: Install GitHub SSH Key
-        uses: webfactory/ssh-agent@v0.5.2
+        uses: webfactory/ssh-agent@v0.5.3
         with:
           ssh-private-key: ${{ secrets.GIT_SSH_KEY }}
       # Install Java
@@ -80,7 +80,6 @@ jobs:
       - if: needs.config.outputs.IS_FLUTTER == 'true'
         name: Flutter dependencies & Code Generation
         run: |
-          flutter pub upgrade
           flutter pub get
           flutter pub run build_runner build --delete-conflicting-outputs
       # Decrypt Keystore
@@ -102,6 +101,10 @@ jobs:
         name: Flutter build (Bundle)
         run: flutter build appbundle -t lib/${entry_file}.dart --flavor ${flavor} --release 
         env:
+          KEYSTORE_FILE: ${{ steps.keystore_file.outputs.filePath }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           entry_file: main_prod
           flavor: production
       # Upload to Playstore
@@ -157,7 +160,7 @@ jobs:
           fetch-depth: 0
       # SSH Key for private repository dependencies
       - name: Install GitHub SSH Key
-        uses: webfactory/ssh-agent@v0.5.2
+        uses: webfactory/ssh-agent@v0.5.3
         with:
           ssh-private-key: ${{ secrets.GIT_SSH_KEY }}
       # Fastlane Setup
@@ -172,6 +175,9 @@ jobs:
           fi
           gem install bundler
           bundle install
+      # Pod repo update
+      - name: Pod Repo update
+        run: pod repo update
       # Install Flutter
       - if: needs.config.outputs.IS_FLUTTER == 'true'
         name: Setup Flutter
@@ -183,12 +189,8 @@ jobs:
       - if: needs.config.outputs.IS_FLUTTER == 'true'
         name: Flutter dependencies & Code Generation
         run: |
-          flutter pub upgrade
           flutter pub get
           flutter pub run build_runner build --delete-conflicting-outputs
-      # Pod repo update
-      - name: Pod Repo update
-        run: pod repo update
       # Flutter build
       - if: needs.config.outputs.IS_FLUTTER == 'true'
         name: Flutter build
