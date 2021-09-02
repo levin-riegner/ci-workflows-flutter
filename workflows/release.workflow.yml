@@ -136,7 +136,11 @@ jobs:
           flavor: production
       # Upload to Firebase
       - name: Upload To Firebase
-        run: bundle exec fastlane internal_release --env $environment is_flutter:$is_flutter
+        run: |
+          if [ "${{ needs.config.outputs.IS_FLUTTER }}" == "true" ]; then
+            cd android
+          fi
+          bundle exec fastlane internal_release --env $environment is_flutter:$is_flutter
         env:
           KEYSTORE_FILE: ${{ steps.keystore_file.outputs.filePath }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
