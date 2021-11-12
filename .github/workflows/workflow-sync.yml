@@ -8,7 +8,6 @@ env:
   # Repositories to Sync
   REPOSITORIES: |
     levin-riegner/candid-flutter
-    CameronLambProductions/alxr-flutter
     levin-riegner/avenew-flutter
     levin-riegner/spireworks-ios
     levin-riegner/ars-gratia-flutter
