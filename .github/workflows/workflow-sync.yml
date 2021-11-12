@@ -11,6 +11,7 @@ env:
     CameronLambProductions/alxr-flutter
     levin-riegner/avenew-flutter
     levin-riegner/spireworks-ios
+    levin-riegner/ars-gratia-flutter
   # Files to Sync
   WORKFLOW_FILES: |
     internal.workflow.yml
