@@ -13,7 +13,7 @@ jobs:
   # Config Job
   config:
     name: Load dotenv Config
-    runs-on: self-hosted # WAS: ubuntu-latest
+    runs-on: ubuntu-latest # WAS: self-hosted
     timeout-minutes: 5
     outputs:
       # dotenv variables
@@ -34,7 +34,7 @@ jobs:
           path: ./.github/workflows/.env
           log-variables: true
   test:
-    runs-on: self-hosted # WAS: ubuntu-latest
+    runs-on: ubuntu-latest # WAS: self-hosted
     needs: config
     if: needs.config.outputs.IS_FLUTTER == 'true'
     timeout-minutes: 15
