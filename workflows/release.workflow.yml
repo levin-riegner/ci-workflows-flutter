@@ -14,7 +14,7 @@ jobs:
   # Config Job
   config:
     name: Load dotenv Config
-    runs-on: ubuntu-latest # WAS: self-hosted
+    runs-on: self-hosted # WAS: ubuntu-latest
     timeout-minutes: 5
     outputs:
       # dotenv variables
@@ -39,7 +39,7 @@ jobs:
     name: Android Release Workflow
     needs: config
     if: needs.config.outputs.ANDROID_SUPPORTED == 'true'
-    runs-on: ubuntu-latest # WAS: self-hosted
+    runs-on: self-hosted # WAS: ubuntu-latest
     timeout-minutes: 30
     steps:
       - name: Checkout
@@ -154,7 +154,7 @@ jobs:
     name: iOS Release Workflow
     needs: config
     if: needs.config.outputs.IOS_SUPPORTED == 'true'
-    runs-on: macos-11 # WAS: self-hosted
+    runs-on: self-hosted # WAS macos-11
     timeout-minutes: 60
     steps:
       - name: Checkout
