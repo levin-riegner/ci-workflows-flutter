@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+      - testbed
 env:
   # Old repos:
   # levin-riegner/candid-flutter
