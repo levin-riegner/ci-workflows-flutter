@@ -22,7 +22,7 @@ env:
     changelog.workflow.yml
     ./.github/config/changelog_pullrequest.json
   # Run the Sync Action without pushing to repos
-  DRY_RUN: false
+  DRY_RUN: true
   # Commit files via Pull Request
   PULL_REQUEST: true
   AUTO_CREATE_NEW_BRANCH: true
