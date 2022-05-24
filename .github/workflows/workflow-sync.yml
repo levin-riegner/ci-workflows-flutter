@@ -5,10 +5,11 @@ on:
     branches:
       - master
 env:
+  # Old repos:
+  # levin-riegner/candid-flutter
+  # levin-riegner/avenew-flutter
   # Repositories to Sync
   REPOSITORIES: |
-    levin-riegner/candid-flutter
-    levin-riegner/avenew-flutter
     levin-riegner/spireworks-ios
     levin-riegner/ars-gratia-flutter
     levin-riegner/lodge-flutter
@@ -17,11 +18,14 @@ env:
     internal.workflow.yml
     release.workflow.yml
     test.workflow.yml
+    changelog.workflow.yml
+    ./.github/config/changelog_pullrequest.json
   # Run the Sync Action without pushing to repos
   DRY_RUN: false
   # Commit files via Pull Request
   PULL_REQUEST: true
   AUTO_CREATE_NEW_BRANCH: true
+  SKIP_CI: true
 
 jobs:
   github_workflow_sync:
