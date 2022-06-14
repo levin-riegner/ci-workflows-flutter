@@ -6,9 +6,10 @@ on:
       - 'internal/**'
   workflow_dispatch:
 
-env:
-  # Self-hosted OS (needed to install Ruby)
-  ImageOS: macos1015
+# Use bash as the default shell sourcing /etc/bashrc
+defaults:
+  run:
+    shell: bash -leo pipefail {0}
 
 jobs:
   # Config Job
@@ -57,10 +58,12 @@ jobs:
         with:
           java-version: ${{ needs.config.outputs.JAVA_VERSION }}
       # Fastlane Setup
-      - name: Setup Ruby
-        uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: ${{ needs.config.outputs.RUBY_VERSION }}
+      # - name: Setup Ruby
+      #   uses: ruby/setup-ruby@v1
+      #   with:
+      #     ruby-version: ${{ needs.config.outputs.RUBY_VERSION }}
+      #   env:
+      #     ImageOS: "macos12"
       - name: Setup Fastlane
         run: |
           if [ "${{ needs.config.outputs.IS_FLUTTER }}" == "true" ]; then
@@ -132,10 +135,12 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.GIT_SSH_KEY }}
       # Fastlane Setup
-      - name: Setup Ruby
-        uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: ${{ needs.config.outputs.RUBY_VERSION }}
+      # - name: Setup Ruby
+      #   uses: ruby/setup-ruby@v1
+      #   with:
+      #     ruby-version: ${{ needs.config.outputs.RUBY_VERSION }}
+      #   env:
+      #     ImageOS: "macos12"
       - name: Setup Fastlane
         run: |
           if [ "${{ needs.config.outputs.IS_FLUTTER }}" == "true" ]; then
