@@ -47,10 +47,14 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.GIT_SSH_KEY }}
       # Install Flutter
-      - name: Setup Flutter
+      - if: needs.config.outputs.IS_FLUTTER == 'true' && needs.config.outputs.FLUTTER_VERSION == null
+        name: Parse flutter fvm version
+        uses: kuhnroyal/flutter-fvm-config-action@v1
+      - if: needs.config.outputs.IS_FLUTTER == 'true'
+        name: Setup Flutter
         uses: subosito/flutter-action@v1
         with:
-          flutter-version: ${{ needs.config.outputs.FLUTTER_VERSION }}
+          flutter-version: ${{ env.FLUTTER_VERSION || needs.config.outputs.FLUTTER_VERSION }}
           channel: 'stable'
       # Flutter project build
       - name: Flutter dependencies & Code Generation

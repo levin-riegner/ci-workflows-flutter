@@ -72,11 +72,14 @@ jobs:
           gem install bundler
           bundle install
       # Install Flutter
+      - if: needs.config.outputs.IS_FLUTTER == 'true' && needs.config.outputs.FLUTTER_VERSION == null
+        name: Parse flutter fvm version
+        uses: kuhnroyal/flutter-fvm-config-action@v1
       - if: needs.config.outputs.IS_FLUTTER == 'true'
         name: Setup Flutter
         uses: subosito/flutter-action@v1
         with:
-          flutter-version: ${{ needs.config.outputs.FLUTTER_VERSION }}
+          flutter-version: ${{ env.FLUTTER_VERSION || needs.config.outputs.FLUTTER_VERSION }}
           channel: 'stable'
       # Flutter Dependencies
       - if: needs.config.outputs.IS_FLUTTER == 'true'
@@ -152,11 +155,14 @@ jobs:
       - name: Pod Repo update
         run: pod repo update
       # Install Flutter
+      - if: needs.config.outputs.IS_FLUTTER == 'true' && needs.config.outputs.FLUTTER_VERSION == null
+        name: Parse flutter fvm version
+        uses: kuhnroyal/flutter-fvm-config-action@v1
       - if: needs.config.outputs.IS_FLUTTER == 'true'
         name: Setup Flutter
         uses: subosito/flutter-action@v1
         with:
-          flutter-version: ${{ needs.config.outputs.FLUTTER_VERSION }}
+          flutter-version: ${{ env.FLUTTER_VERSION || needs.config.outputs.FLUTTER_VERSION }}
           channel: 'stable'
       # Flutter Dependencies
       - if: needs.config.outputs.IS_FLUTTER == 'true'
