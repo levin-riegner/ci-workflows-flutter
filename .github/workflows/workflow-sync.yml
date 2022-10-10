@@ -13,6 +13,7 @@ env:
   REPOSITORIES: |
     levin-riegner/ars-gratia-flutter
     levin-riegner/lodge-flutter
+    Global-Poverty-Project/Global-Citizen-Mobile-Flutter
   # Files to Sync
   WORKFLOW_FILES: |
     internal.workflow.yml
@@ -32,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Fetching Local Repository
-        uses: actions/checkout@master
+        uses: actions/checkout@v3
       - name: Running Workflow Sync
         uses: varunsridharan/action-github-workflow-sync@main
         with:

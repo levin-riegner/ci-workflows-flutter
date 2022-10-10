@@ -3,7 +3,7 @@ name: Internal Workflow - Uploads QA build
 on:
   push:
     branches:
-      - 'internal/**'
+      - "internal/**"
   workflow_dispatch:
 
 # Use bash as the default shell sourcing /etc/bashrc
@@ -27,10 +27,10 @@ jobs:
       IS_FLUTTER: ${{ steps.dotenv.outputs.IS_FLUTTER }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       # Load dotenv config
       - name: Load dotenv config
-        uses: falti/dotenv-action@v0.2.5
+        uses: falti/dotenv-action@v0.2.8
         id: dotenv
         with:
           path: ./.github/workflows/.env
@@ -44,18 +44,19 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
       # SSH Key for private repository dependencies
       - name: Install GitHub SSH Key
-        uses: webfactory/ssh-agent@v0.5.3
+        uses: webfactory/ssh-agent@v0.5.4
         with:
           ssh-private-key: ${{ secrets.GIT_SSH_KEY }}
       # Install Java
       - name: Setup Java
-        uses: actions/setup-java@v1
+        uses: actions/setup-java@v2
         with:
+          distribution: "zulu"
           java-version: ${{ needs.config.outputs.JAVA_VERSION }}
       # Fastlane Setup
       # - name: Setup Ruby
@@ -77,10 +78,10 @@ jobs:
         uses: kuhnroyal/flutter-fvm-config-action@v1
       - if: needs.config.outputs.IS_FLUTTER == 'true'
         name: Setup Flutter
-        uses: subosito/flutter-action@v1
+        uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION || needs.config.outputs.FLUTTER_VERSION }}
-          channel: 'stable'
+          channel: "stable"
       # Flutter Dependencies
       - if: needs.config.outputs.IS_FLUTTER == 'true'
         name: Flutter dependencies & Code Generation
@@ -90,14 +91,14 @@ jobs:
       # Decrypt Keystore
       - name: Decrypt Keystore
         id: keystore_file
-        uses: timheuer/base64-to-file@v1.0.4
+        uses: timheuer/base64-to-file@v1.1
         with:
-          fileName: 'keystore.jks'
+          fileName: "keystore.jks"
           encodedString: ${{ secrets.KEYSTORE_BASE64 }}
       # Flutter build
       - if: needs.config.outputs.IS_FLUTTER == 'true'
         name: Flutter build
-        run: flutter build apk -t lib/${entry_file}.dart --flavor ${flavor} --release 
+        run: flutter build apk -t lib/${entry_file}.dart --flavor ${flavor} --release
         env:
           KEYSTORE_FILE: ${{ steps.keystore_file.outputs.filePath }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
@@ -129,12 +130,12 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
       # SSH Key for private repository dependencies
       - name: Install GitHub SSH Key
-        uses: webfactory/ssh-agent@v0.5.3
+        uses: webfactory/ssh-agent@v0.5.4
         with:
           ssh-private-key: ${{ secrets.GIT_SSH_KEY }}
       # Fastlane Setup
@@ -160,10 +161,10 @@ jobs:
         uses: kuhnroyal/flutter-fvm-config-action@v1
       - if: needs.config.outputs.IS_FLUTTER == 'true'
         name: Setup Flutter
-        uses: subosito/flutter-action@v1
+        uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION || needs.config.outputs.FLUTTER_VERSION }}
-          channel: 'stable'
+          channel: "stable"
       # Flutter Dependencies
       - if: needs.config.outputs.IS_FLUTTER == 'true'
         name: Flutter dependencies & Code Generation

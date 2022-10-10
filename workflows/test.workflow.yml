@@ -3,10 +3,10 @@ name: Run Flutter Unit Tests
 on:
   push:
     branches:
-      - '**'
-      - '!internal/**'
-      - '!release/**'
-      - '!file-sync**'
+      - "**"
+      - "!internal/**"
+      - "!release/**"
+      - "!file-sync**"
   workflow_dispatch:
 
 jobs:
@@ -25,10 +25,10 @@ jobs:
       IS_FLUTTER: ${{ steps.dotenv.outputs.IS_FLUTTER }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       # Load dotenv config
       - name: Load dotenv config
-        uses: falti/dotenv-action@v0.2.5
+        uses: falti/dotenv-action@v0.2.8
         id: dotenv
         with:
           path: ./.github/workflows/.env
@@ -40,10 +40,10 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout
-        uses: actions/checkout@v1
+        uses: actions/checkout@v3
       # SSH Key for private repository dependencies
       - name: Install GitHub SSH Key
-        uses: webfactory/ssh-agent@v0.5.3
+        uses: webfactory/ssh-agent@v0.5.4
         with:
           ssh-private-key: ${{ secrets.GIT_SSH_KEY }}
       # Install Flutter
@@ -52,10 +52,10 @@ jobs:
         uses: kuhnroyal/flutter-fvm-config-action@v1
       - if: needs.config.outputs.IS_FLUTTER == 'true'
         name: Setup Flutter
-        uses: subosito/flutter-action@v1
+        uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION || needs.config.outputs.FLUTTER_VERSION }}
-          channel: 'stable'
+          channel: "stable"
       # Flutter project build
       - name: Flutter dependencies & Code Generation
         run: |
