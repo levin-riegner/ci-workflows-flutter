@@ -11,7 +11,7 @@ env:
   # levin-riegner/spireworks-ios
   # Repositories to Sync
   REPOSITORIES: |
-    levin-riegner/ars-gratia-flutter
+    levin-riegner/warm-flutter
     levin-riegner/lodge-flutter
     Global-Poverty-Project/Global-Citizen-Mobile-Flutter
   # Files to Sync
