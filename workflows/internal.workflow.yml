@@ -135,7 +135,7 @@ jobs:
           flavor: DEV
       # Upload DEV Build
       - if: needs.config.outputs.DEV_ENV_SUPPORTED == 'true'
-      - name: Upload DEV Build
+        name: Upload DEV Build
         run: |
           if [ "${{ needs.config.outputs.IS_FLUTTER }}" == "true" ]; then
             cd android
@@ -225,7 +225,7 @@ jobs:
         name: Flutter DEV Build
         run: flutter build ios -t lib/${entry_file}.dart --flavor ${flavor} --release --no-codesign
         env:
-          entry_file: main_dev.dart
+          entry_file: main_dev
           flavor: DEV
       # Upload DEV Build to Appstore Connect
       - if: needs.config.outputs.DEV_ENV_SUPPORTED == 'true'
