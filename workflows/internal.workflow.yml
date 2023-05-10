@@ -25,7 +25,6 @@ jobs:
       RUBY_VERSION: ${{ steps.dotenv.outputs.RUBY_VERSION }}
       JAVA_VERSION: ${{ steps.dotenv.outputs.JAVA_VERSION }}
       IS_FLUTTER: ${{ steps.dotenv.outputs.IS_FLUTTER }}
-      DEV_ENV_SUPPORTED: ${{ steps.dotenv.outputs.DEV_ENV_SUPPORTED }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -122,33 +121,6 @@ jobs:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
           environment: qa
           is_flutter: ${{ needs.config.outputs.IS_FLUTTER }}
-      # Flutter DEV Build
-      - if: needs.config.outputs.DEV_ENV_SUPPORTED == 'true'
-        name: Flutter DEV Build
-        run: flutter build apk -t lib/${entry_file}.dart --flavor ${flavor} --release
-        env:
-          KEYSTORE_FILE: ${{ steps.keystore_file.outputs.filePath }}
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-          entry_file: main_dev
-          flavor: DEV
-      # Upload DEV Build
-      - if: needs.config.outputs.DEV_ENV_SUPPORTED == 'true'
-        name: Upload DEV Build
-        run: |
-          if [ "${{ needs.config.outputs.IS_FLUTTER }}" == "true" ]; then
-            cd android
-          fi
-          bundle exec fastlane internal_release --env $environment is_flutter:$is_flutter
-        env:
-          KEYSTORE_FILE: ${{ steps.keystore_file.outputs.filePath }}
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
-          environment: dev
-          is_flutter: ${{ needs.config.outputs.IS_FLUTTER }}
   # iOS Job
   internal_ios:
     name: iOS Internal Workflow
@@ -220,25 +192,3 @@ jobs:
           MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
           APPSTORE_KEY_BASE64: ${{ secrets.APPSTORE_KEY_BASE64 }}
           environment: qa
-      # Flutter DEV build
-      - if: needs.config.outputs.DEV_ENV_SUPPORTED == 'true'
-        name: Flutter DEV Build
-        run: flutter build ios -t lib/${entry_file}.dart --flavor ${flavor} --release --no-codesign
-        env:
-          entry_file: main_dev
-          flavor: DEV
-      # Upload DEV Build to Appstore Connect
-      - if: needs.config.outputs.DEV_ENV_SUPPORTED == 'true'
-        name: Upload DEV Build
-        run: |
-          if [ "${{ needs.config.outputs.IS_FLUTTER }}" == "true" ]; then
-            cd ios
-          fi
-          bundle exec fastlane testflight_release is_ci:true --env $environment appstore_key:$APPSTORE_KEY_BASE64
-        env:
-          MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
-          FASTLANE_USER: ${{ secrets.FASTLANE_USER }}
-          FASTLANE_PASSWORD: ${{ secrets.FASTLANE_PASSWORD }}
-          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
-          APPSTORE_KEY_BASE64: ${{ secrets.APPSTORE_KEY_BASE64 }}
-          environment: dev

@@ -9,10 +9,10 @@ env:
   # levin-riegner/candid-flutter
   # levin-riegner/avenew-flutter
   # levin-riegner/spireworks-ios
+  # levin-riegner/warm-flutter
+  # levin-riegner/lodge-flutter
   # Repositories to Sync
   REPOSITORIES: |
-    levin-riegner/warm-flutter
-    levin-riegner/lodge-flutter
     Global-Poverty-Project/Global-Citizen-Mobile-Flutter
   # Files to Sync
   WORKFLOW_FILES: |
@@ -35,7 +35,7 @@ jobs:
       - name: Fetching Local Repository
         uses: actions/checkout@v3
       - name: Running Workflow Sync
-        uses: varunsridharan/action-github-workflow-sync@main
+        uses: varunsridharan/action-github-workflow-sync@3.3
         with:
           DRY_RUN: ${{ env.DRY_RUN }}
           REPOSITORIES: ${{ env.REPOSITORIES }}

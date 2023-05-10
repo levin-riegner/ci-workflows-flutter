@@ -7,8 +7,28 @@ on:
   workflow_dispatch:
 
 jobs:
+  # Config Job
+  config:
+    name: Load dotenv Config
+    runs-on: self-hosted # WAS: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      # dotenv variables
+      CHANGELOG_USE_PULL_REQUEST: ${{ steps.dotenv.outputs.CHANGELOG_USE_PULL_REQUEST }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      # Load dotenv config
+      - name: Load dotenv config
+        uses: falti/dotenv-action@v0.2.8
+        id: dotenv
+        with:
+          path: ./.github/workflows/.env
+          log-variables: true
+  # Tag, Release and Changelog Job
   tag_release_changelog:
     name: Tag, Release and Changelog
+    needs: config
     runs-on: self-hosted
     timeout-minutes: 10
     steps:
@@ -60,8 +80,25 @@ jobs:
           echo '-n' >> CHANGELOG.md
           cat CHANGELOG.md >> CHANGELOG.md.tmp
           mv CHANGELOG.md.tmp CHANGELOG.md
-      # Push changelog file
-      - name: Commit updated CHANGELOG.md
+      # Push changelog: via pull request
+      - if: needs.config.outputs.CHANGELOG_USE_PULL_REQUEST == 'true'
+        name: Pull Request updated CHANGELOG.md
+        uses: peter-evans/create-pull-request@v5
+        with:
+          commit-message: "docs: update CHANGELOG"
+          title: Update CHANGELOG for ${{steps.extract_version.outputs.tag_name}}
+          branch: update-changelog
+          delete-branch: true
+          base: master
+          labels: |
+            changelog
+          body: |
+            Automated changes by [create-pull-request](https://github.com/peter-evans/create-pull-request) GitHub action.
+
+            ${{steps.build_changelog.outputs.changelog}}
+      # Push changelog: via master push
+      - if: needs.config.outputs.CHANGELOG_USE_PULL_REQUEST != 'true'
+        name: Commit updated CHANGELOG.md
         uses: stefanzweifel/git-auto-commit-action@v4
         with:
           branch: master

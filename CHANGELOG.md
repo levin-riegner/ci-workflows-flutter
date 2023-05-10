@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2023-10-10
+
+### Changed
+
+- Update JAVA_VERSION example to use SemVer notation.
+- Support changelog file changes via pull request.
+
 ## 2022-10-10
 
 ### Changed

@@ -10,5 +10,8 @@
     "pr_template": "- ${{TITLE}} ([#${{NUMBER}}](${{URL}})) via [@${{AUTHOR}}](https://github.com/${{AUTHOR}}).",
     "empty_template": "- No changes with pull requests.\n",
     "max_pull_requests": 1000,
-    "max_back_track_time_days": 90
+    "max_back_track_time_days": 90,
+    "ignore_labels": [
+        "changelog"
+    ]
 }
