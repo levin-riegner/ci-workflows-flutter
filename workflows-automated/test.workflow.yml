@@ -1,0 +1,64 @@
+name: Test Workflow - Run Flutter Unit Tests
+
+on:
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  # Config Job
+  config:
+    name: Load dotenv Config
+    runs-on: self-hosted # WAS: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      # dotenv variables
+      FLUTTER_VERSION: ${{ steps.dotenv.outputs.FLUTTER_VERSION }}
+      ANDROID_SUPPORTED: ${{ steps.dotenv.outputs.ANDROID_SUPPORTED }}
+      IOS_SUPPORTED: ${{ steps.dotenv.outputs.IOS_SUPPORTED }}
+      RUBY_VERSION: ${{ steps.dotenv.outputs.RUBY_VERSION }}
+      JAVA_VERSION: ${{ steps.dotenv.outputs.JAVA_VERSION }}
+      IS_FLUTTER: ${{ steps.dotenv.outputs.IS_FLUTTER }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      # Load dotenv config
+      - name: Load dotenv config
+        uses: falti/dotenv-action@v0.2.8
+        id: dotenv
+        with:
+          path: ./.github/workflows/.env
+          log-variables: true
+  test:
+    name: Flutter Test Workflow
+    runs-on: self-hosted # WAS: ubuntu-latest
+    needs: config
+    if: needs.config.outputs.IS_FLUTTER == 'true'
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      # SSH Key for private repository dependencies
+      - name: Install GitHub SSH Key
+        uses: webfactory/ssh-agent@v0.5.4
+        with:
+          ssh-private-key: ${{ secrets.GIT_SSH_KEY }}
+      # Install Flutter
+      - if: needs.config.outputs.IS_FLUTTER == 'true' && needs.config.outputs.FLUTTER_VERSION == null
+        name: Parse flutter fvm version
+        uses: kuhnroyal/flutter-fvm-config-action@v1
+      - if: needs.config.outputs.IS_FLUTTER == 'true'
+        name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION || needs.config.outputs.FLUTTER_VERSION }}
+          channel: "stable"
+      # Flutter project build
+      - name: Flutter dependencies & Code Generation
+        run: |
+          flutter pub get
+          dart run build_runner build --delete-conflicting-outputs
+      # Run Unit Tests
+      - name: Run Unit Tests
+        run: flutter test

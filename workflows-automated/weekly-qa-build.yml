@@ -1,0 +1,551 @@
+name: Scheduled Weekly QA Build
+
+on:
+  schedule:
+    # Runs every Monday at 10:00 AM UTC.
+    - cron: '0 10 * * 1'
+  workflow_dispatch:
+
+defaults:
+  run:
+    shell: bash -leo pipefail {0}
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  # Config Job
+  config:
+    name: Load dotenv Config
+    runs-on: self-hosted
+    timeout-minutes: 5
+    outputs:
+      # dotenv variables
+      FLUTTER_VERSION: ${{ steps.dotenv.outputs.FLUTTER_VERSION }}
+      ANDROID_SUPPORTED: ${{ steps.dotenv.outputs.ANDROID_SUPPORTED }}
+      IOS_SUPPORTED: ${{ steps.dotenv.outputs.IOS_SUPPORTED }}
+      RUBY_VERSION: ${{ steps.dotenv.outputs.RUBY_VERSION }}
+      JAVA_VERSION: ${{ steps.dotenv.outputs.JAVA_VERSION }}
+      IS_FLUTTER: ${{ steps.dotenv.outputs.IS_FLUTTER }}
+    steps:
+      - name: Checkout repository (to access .env file)
+        uses: actions/checkout@v3
+      # Load dotenv config
+      - name: Load dotenv config
+        uses: falti/dotenv-action@v0.2.8
+        id: dotenv
+        with:
+          path: ./.github/workflows/.env
+          log-variables: true
+
+  # Check for Changes and Prepare Version Information
+  check_changes_and_prepare_version:
+    name: Check Changes & Prepare Version
+    runs-on: ubuntu-latest
+    needs: config 
+    outputs:
+      has_changes: ${{ steps.check_logic.outputs.has_changes }}
+      version_name: ${{ steps.check_logic.outputs.version_name }}
+      new_build_number: ${{ steps.check_logic.outputs.new_build_number }}
+      last_tag_ref: ${{ steps.check_logic.outputs.last_tag_ref }}
+      last_tag_date: ${{ steps.check_logic.outputs.last_tag_date }}
+      commit_sha: ${{ steps.check_logic.outputs.commit_sha }}
+    steps:
+      - name: Checkout master branch (for git tag and PR operations)
+        uses: actions/checkout@v3
+        with:
+          ref: master
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install gh & jq (if not already available)
+        run: |
+          need_install=false
+          command -v gh >/dev/null || need_install=true
+          command -v jq >/dev/null || need_install=true
+          if [ "$need_install" = true ]; then
+            sudo apt-get update
+            sudo apt-get install -y gh jq
+          fi
+      - name: Implement Check & Version Logic for Weekly Build
+        id: check_logic
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Fetching all tags from origin to ensure local cache is up-to-date..."
+          git fetch origin --tags --force # Update local tags from 'origin' remote
+
+          TAG_NAME="latest-qa-version"
+
+          # Find the tag in the repository. It must exist.
+          if ! git rev-parse -q --verify "refs/tags/${TAG_NAME}" >/dev/null; then
+            echo "::error::Tag '${TAG_NAME}' not found. Please create it manually or run an 'development' build to initialize it."
+            exit 1
+          fi
+          
+          # Extract the X.Y.Z version from the message of the base tag.
+          # This version will be REUSED for the new build, not incremented.
+          CURRENT_VERSION_NAME=$(git tag -l "${TAG_NAME}" --format='%(contents:subject)' | grep -o '[0-9]*\.[0-9]*\.[0-9]*' | head -n 1)
+
+          if [ -z "$CURRENT_VERSION_NAME" ]; then
+            echo "::error::Tag '${TAG_NAME}' does not contain a valid X.Y.Z version in its message."
+            exit 1 # Fail if the base tag is missing or incorrect
+          fi
+          echo "Current QA version from tag is: $CURRENT_VERSION_NAME. This version will be used for the new build."
+          echo "version_name=$CURRENT_VERSION_NAME" >> $GITHUB_OUTPUT
+
+          # This is the internal build number.
+          VERSION_CODE_OFFSET=30000
+          COMMIT_COUNT=$(git rev-list master --count)
+          BUILD_NUMBER=$((COMMIT_COUNT + VERSION_CODE_OFFSET))
+          echo "Calculated new build number: $BUILD_NUMBER"
+          echo "new_build_number=$BUILD_NUMBER" >> $GITHUB_OUTPUT
+
+          # Get the short commit SHA for release reference
+          COMMIT_SHA=$(git rev-parse --short HEAD)
+          echo "Build commit SHA: $COMMIT_SHA"
+          echo "commit_sha=$COMMIT_SHA" >> $GITHUB_OUTPUT
+
+           # Find PRs merged since the last DEV build tag was moved.
+          DATE_SEARCH_FILTER=$(git log -1 --format=%cI "$TAG_NAME")
+          echo "Checking for PRs merged to master since $DATE_SEARCH_FILTER (from tag '${TAG_NAME}')"
+          echo "last_tag_ref=${TAG_NAME}" >> $GITHUB_OUTPUT # Pass the tag name for the Slack message
+          echo "last_tag_date=${DATE_SEARCH_FILTER}" >> $GITHUB_OUTPUT
+          
+          PR_COUNT=$(gh pr list --state merged --base master --search "merged:>${DATE_SEARCH_FILTER}" --json number | jq 'length')
+          
+          if [ "$PR_COUNT" -eq 0 ]; then
+            echo "No new PRs merged. Build will be skipped."
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          else
+            echo "${PR_COUNT} new PR(s) found. Proceeding with build."
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          fi
+
+  # Android Job
+  internal_android:
+    name: Android Weekly QA Build
+    needs: [config, check_changes_and_prepare_version]
+    if: needs.config.outputs.ANDROID_SUPPORTED == 'true' && needs.check_changes_and_prepare_version.outputs.has_changes == 'true'
+    runs-on: self-hosted
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          ref: master # Build from the latest master
+          fetch-depth: 0 
+      # SSH Key for private repository dependencies
+      - name: Install GitHub SSH Key
+        uses: webfactory/ssh-agent@v0.5.4
+        with:
+          ssh-private-key: ${{ secrets.GIT_SSH_KEY }}
+      # Install Java
+      - name: Setup Java
+        uses: actions/setup-java@v2
+        with:
+          distribution: "zulu"
+          java-version: ${{ needs.config.outputs.JAVA_VERSION }}
+      # Fastlane Setup
+      - name: Setup Fastlane
+        run: |
+          if [ "${{ needs.config.outputs.IS_FLUTTER }}" == "true" ]; then
+            cd android
+          fi
+          gem install bundler
+          bundle install
+      # Install Flutter
+      - if: needs.config.outputs.IS_FLUTTER == 'true' && needs.config.outputs.FLUTTER_VERSION == null
+        name: Parse flutter fvm version
+        uses: kuhnroyal/flutter-fvm-config-action@v1
+      - if: needs.config.outputs.IS_FLUTTER == 'true'
+        name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION || needs.config.outputs.FLUTTER_VERSION }}
+          channel: "stable"
+      # Flutter Dependencies
+      - if: needs.config.outputs.IS_FLUTTER == 'true'
+        name: Flutter dependencies & Code Generation
+        run: |
+          flutter pub get
+          dart run build_runner build --delete-conflicting-outputs
+      # Decrypt Keystore
+      - name: Decrypt Keystore
+        id: keystore_file
+        uses: timheuer/base64-to-file@v1.1
+        with:
+          fileName: "keystore.jks"
+          encodedString: ${{ secrets.KEYSTORE_BASE64 }}
+      # Flutter QA build
+      - if: needs.config.outputs.IS_FLUTTER == 'true'
+        name: Flutter QA build (Weekly Android)
+        run: |
+          echo "Building Android QA with ENV VARS Version Name: ${{ needs.check_changes_and_prepare_version.outputs.version_name }} and Build Number: ${{ needs.check_changes_and_prepare_version.outputs.new_build_number }}"
+          # Build without flags, Gradle will read from ENV VARS
+          flutter build apk -t lib/${entry_file}.dart --flavor ${flavor} --release 
+        env:
+          # These ENV VARS will be read by build.gradle
+          FLUTTER_BUILD_NAME: ${{ needs.check_changes_and_prepare_version.outputs.version_name }}
+          FLUTTER_BUILD_NUMBER: ${{ needs.check_changes_and_prepare_version.outputs.new_build_number }}
+          # Keystore variables
+          KEYSTORE_FILE: ${{ steps.keystore_file.outputs.filePath }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          entry_file: main_qa
+          flavor: QA
+      # Upload QA build
+      - name: Upload QA Build to Firebase
+        run: |
+          if [ "${{ needs.config.outputs.IS_FLUTTER }}" == "true" ]; then
+            cd android
+          fi
+          bundle exec fastlane internal_release --env $environment is_flutter:$is_flutter
+        env:
+          KEYSTORE_FILE: ${{ steps.keystore_file.outputs.filePath }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          environment: qa
+          is_flutter: ${{ needs.config.outputs.IS_FLUTTER }}
+
+  # iOS Job
+  internal_ios:
+    name: iOS Weekly QA Build
+    needs: [config, check_changes_and_prepare_version]
+    if: needs.config.outputs.IOS_SUPPORTED == 'true' && needs.check_changes_and_prepare_version.outputs.has_changes == 'true'
+    runs-on: self-hosted
+    timeout-minutes: 60
+    steps:
+      - name: Checkout master branch (for building)
+        uses: actions/checkout@v3
+        with:
+          ref: master
+          fetch-depth: 0
+      # SSH Key for private repository dependencies
+      - name: Install GitHub SSH Key
+        uses: webfactory/ssh-agent@v0.5.4
+        with:
+          ssh-private-key: ${{ secrets.GIT_SSH_KEY }}
+      # Fastlane Setup
+      - name: Setup Fastlane for iOS
+        run: |
+          if [ "${{ needs.config.outputs.IS_FLUTTER }}" == "true" ]; then
+            cd ios
+          fi
+          gem install bundler
+          bundle install --jobs 4 --retry 3
+      # Pod repo update
+      - name: Pod Repo Update
+        if: needs.config.outputs.IS_FLUTTER == 'true'
+        run: |
+          if [ "${{ needs.config.outputs.IS_FLUTTER }}" == "true" ]; then
+            cd ios
+            pod repo update
+            cd ..
+          fi
+      # Install Flutter
+      - if: needs.config.outputs.IS_FLUTTER == 'true' && needs.config.outputs.FLUTTER_VERSION == null
+        name: Parse flutter fvm version
+        uses: kuhnroyal/flutter-fvm-config-action@v1
+      - if: needs.config.outputs.IS_FLUTTER == 'true'
+        name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION || needs.config.outputs.FLUTTER_VERSION }}
+          channel: "stable"
+      # Flutter Dependencies
+      - if: needs.config.outputs.IS_FLUTTER == 'true'
+        name: Flutter dependencies & Code Generation
+        run: |
+          flutter pub get
+          dart run build_runner build --delete-conflicting-outputs
+      # Flutter QA build
+      - if: needs.config.outputs.IS_FLUTTER == 'true'
+        name: Flutter QA build (Weekly iOS)
+        run: |
+          echo "Building iOS QA with Version Name: ${{ needs.check_changes_and_prepare_version.outputs.version_name }} and Build Number: ${{ needs.check_changes_and_prepare_version.outputs.new_build_number }}"
+          flutter build ios -t lib/${entry_file}.dart --flavor ${flavor} --release --no-codesign \
+            --build-name=${{ needs.check_changes_and_prepare_version.outputs.version_name }} \
+            --build-number=${{ needs.check_changes_and_prepare_version.outputs.new_build_number }}
+        env:
+          entry_file: main_qa
+          flavor: QA
+      # Upload QA to Appstore Connect
+      - name: Upload QA build
+        run: |
+          if [ "${{ needs.config.outputs.IS_FLUTTER }}" == "true" ]; then
+            cd ios
+          fi
+          bundle exec fastlane testflight_release is_ci:true --env $environment appstore_key:$APPSTORE_KEY_BASE64
+        env:
+          MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+          FASTLANE_USER: ${{ secrets.FASTLANE_USER }}
+          FASTLANE_PASSWORD: ${{ secrets.FASTLANE_PASSWORD }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          APPSTORE_KEY_BASE64: ${{ secrets.APPSTORE_KEY_BASE64 }}
+          environment: qa
+  # Tag Successful Weekly Build
+  tag_successful_weekly_build:
+    name: Move Successful Weekly QA Tag
+    needs: [check_changes_and_prepare_version, internal_android, internal_ios, config]
+    if: |
+      needs.check_changes_and_prepare_version.outputs.has_changes == 'true' &&
+      (needs.config.outputs.ANDROID_SUPPORTED != 'true' || needs.internal_android.result == 'success') &&
+      (needs.config.outputs.IOS_SUPPORTED != 'true' || needs.internal_ios.result == 'success') 
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout master branch (for tagging)
+        uses: actions/checkout@v3
+        with:
+          ref: master 
+          token: ${{ secrets.GITHUB_TOKEN }} 
+          fetch-depth: 0 
+      - name: Move and Push QA Tag
+        env:
+          TAG_NAME: "latest-qa-version"
+          CURRENT_VERSION: ${{ needs.check_changes_and_prepare_version.outputs.version_name }}
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+          
+          echo "Moving tag ${TAG_NAME} to commit $(git rev-parse HEAD) of master"
+          git tag -af "${TAG_NAME}" -m "Latest QA version set to ${CURRENT_VERSION}"
+          
+          echo "Pushing tag ${TAG_NAME} to origin..."
+          git push origin --force "refs/tags/${TAG_NAME}"
+
+  # Send Slack Notification
+  send_slack_notification:
+    name: Send Slack Notification
+    needs: [check_changes_and_prepare_version, internal_android, internal_ios, upload_to_transifex, tag_successful_weekly_build]
+    if: always()  
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout master branch (for git and gh commands)
+        uses: actions/checkout@v3
+        with:
+          ref: master
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install gh & jq (if not already available)
+        run: |
+          need_install=false
+          command -v gh >/dev/null || need_install=true
+          command -v jq >/dev/null || need_install=true
+          if [ "$need_install" = true ]; then
+            sudo apt-get update
+            sudo apt-get install -y gh jq
+          fi
+      - name: Prepare Slack Message
+        if: ${{( needs.check_changes_and_prepare_version.outputs.has_changes == 'false' || (needs.internal_android.result != 'cancelled' && needs.internal_android.result != 'skipped') || (needs.internal_ios.result != 'cancelled' && needs.internal_ios.result != 'skipped'))}}
+        id: slack_message
+        env:
+          HAS_CHANGES: ${{ needs.check_changes_and_prepare_version.outputs.has_changes }}
+          VERSION_NAME: ${{ needs.check_changes_and_prepare_version.outputs.version_name }}
+          BUILD_NUMBER: ${{ needs.check_changes_and_prepare_version.outputs.new_build_number }}
+          COMMIT_SHA: ${{ needs.check_changes_and_prepare_version.outputs.commit_sha }}
+          LAST_TAG_REF: ${{ needs.check_changes_and_prepare_version.outputs.last_tag_ref }}
+          LAST_TAG_DATE: ${{ needs.check_changes_and_prepare_version.outputs.last_tag_date }}
+          # Results from the build/upload/tag jobs
+          ANDROID_RESULT: ${{ needs.internal_android.result }}
+          IOS_RESULT: ${{ needs.internal_ios.result }}
+          TRANSIFEX_RESULT: ${{ needs.upload_to_transifex.result }}
+          TAG_RESULT: ${{ needs.tag_successful_weekly_build.result }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WORKFLOW_URL: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        run: |
+          # This script generates a rich Slack message payload
+          # -------------------
+          # 1. DETERMINE STATUS
+          # -------------------
+          ANDROID_STATUS="${ANDROID_RESULT:-Skipped}"
+          IOS_STATUS="${IOS_RESULT:-Skipped}"
+          TRANSIFEX_STATUS="${TRANSIFEX_RESULT:-Skipped}"
+          TAG_STATUS="${TAG_RESULT:-Skipped}"
+
+          echo "Has Changes: '${HAS_CHANGES}'"
+
+          if [ "$HAS_CHANGES" == "false" ]; then
+          echo "No changes detected since the last build."
+            SLACK_ICON=":information_source:"
+            SLACK_TITLE="Weekly QA Build - No Changes"
+            SLACK_TEXT="No new PRs were merged since the last build."
+            SLACK_COLOR="#4a4a4a"
+
+            JSON_PAYLOAD=$(jq -n \
+              --arg title "$SLACK_TITLE" \
+              --arg icon "$SLACK_ICON" \
+              --arg text "$SLACK_TEXT" \
+              --arg color "$SLACK_COLOR" \
+              --arg WORKFLOW_URL "$WORKFLOW_URL" \
+              '{
+                "username": "Mobile Dev Team",
+                "icon_emoji": ":iphone:",
+                "text": "\($icon) \($title)",  
+                "attachments": [{
+                  "color": $color,
+                   "blocks": [
+                    { "type": "section", "text": { "type": "mrkdwn", "text": $text } },
+                    { "type": "divider" },
+                    { "type": "actions", "elements": [
+                        { "type": "button", "text": { "type": "plain_text", "text": "View Workflow Run" }, "url": $WORKFLOW_URL }
+                      ]
+                    }
+                  ]
+                  }]
+              }')
+          else
+            echo "Changes detected. Building detailed notification."
+            if [[ "$ANDROID_RESULT" == "failure" || "$IOS_RESULT" == "failure" ]]; then
+              SLACK_ICON=":x:"
+              SLACK_TITLE="Weekly QA Build ${VERSION_NAME} - FAILED"
+              SLACK_COLOR="#d50200"
+            else
+              SLACK_ICON=":rocket:"
+              SLACK_TITLE="New Internal Build ${VERSION_NAME} (${BUILD_NUMBER}) is ready for QA"
+              SLACK_COLOR="#36a64f"
+            fi
+            
+            # ---------------------
+            # 2. BUILD THE TASK LIST
+            # ---------------------
+
+            if [ -z "$LAST_TAG_REF" ]; then
+              echo "No last tag reference found. Cannot determine merged PRs."
+              TASK_LIST_MRKDWN="Error: No last tag reference found. Cannot determine merged PRs."
+            else
+              echo "Fetching merged PRs since last tag reference: $LAST_TAG_REF"
+              DATE_SEARCH_FILTER="$LAST_TAG_DATE"
+              JQ_FILTER='
+              [ .[]
+                | (.body  // "") as $b
+                | (.url   // "") as $u 
+                | (.title // "") as $t
+                | (
+                    (
+                      ($b | (try capture("(?mi)^\\s*(?:\\*\\*|__)?\\s*Task\\s*Title\\s*(?:\\*\\*|__)?\\s*:\\s*(?<title>[^\\r\\n]+)") | .title)
+                        // $t // "No Title Provided")
+                      | gsub("^\\s+|\\s+$"; "")            # trim
+                      | gsub("^(?:\\*\\*|__)+\\s*"; "")    # quita **/__ al inicio
+                      | gsub("\\s+(?:\\*\\*|__)+$"; "")    # quita **/__ al final
+                    ) as $task_title
+                    |
+                    (
+                      ($b | (try capture("(?mi)^\\s*(?:\\*\\*|__)?\\s*Task\\s*Link\\s*(?:\\*\\*|__)?\\s*:\\s*(?<link>https?://\\S+)") | .link)
+                        // $u // "")
+                    ) as $task_link
+                    |
+                    "- " +
+                    (if ($task_link|length) > 0
+                      then "<" + $task_link + "|" + ($task_title | gsub("[\\\\\"]"; "\\\\\\&")) + ">"
+                      else ($task_title | gsub("[\\\\\"]"; "\\\\\\&"))
+                    end)
+                  )
+              ] | join("\n")
+              '
+
+              TASK_LIST_MRKDWN=$(
+                gh pr list --state merged --base master --search "merged:>${DATE_SEARCH_FILTER}" \
+                  --json title,body,url --jq "$JQ_FILTER" || true
+              )
+              echo "Task list for Slack: $TASK_LIST_MRKDWN"
+            fi
+
+            if [ -z "$TASK_LIST_MRKDWN" ]; then
+              echo "Falling back to per-PR view to read bodies..."
+              TASK_LIST_MRKDWN=$(
+                gh pr list --state merged --base master --search "merged:>${DATE_SEARCH_FILTER}" --json number \
+                | jq -r '.[].number' \
+                | while read -r N; do
+                    gh pr view "$N" --json title,body,url --jq '
+                      . as $p
+                      | ($p.body // "") as $b
+                      | (
+                          ($b | (try capture("(?mi)^\\s*(?:\\*\\*|__)?\\s*Task\\s*Title\\s*(?:\\*\\*|__)?\\s*:\\s*(?<title>[^\\r\\n]+)") | .title)
+                            // $p.title // "No Title Provided")
+                          | gsub("^\\s+|\\s+$"; "")
+                          | gsub("^(?:\\*\\*|__)+\\s*"; "")
+                          | gsub("\\s+(?:\\*\\*|__)+$"; "")
+                        ) as $task_title
+                      | (
+                          ($b | (try capture("(?mi)^\\s*(?:\\*\\*|__)?\\s*Task\\s*Link\\s*(?:\\*\\*|__)?\\s*:\\s*(?<link>https?://\\S+)") | .link)
+                            // $p.url // "" )
+                        ) as $task_link
+                      | "- " +
+                        (if ($task_link|length) > 0
+                          then "<" + $task_link + "|" + ($task_title | gsub("[\\\\\"]"; "\\\\\\&")) + ">"
+                          else ($task_title | gsub("[\\\\\"]"; "\\\\\\&"))
+                        end)'
+                  done | paste -sd "\n" - 
+              )
+              echo "Task list (fallback): $TASK_LIST_MRKDWN"
+            fi
+          # ------------------------
+          # 3. BUILD JSON PAYLOAD
+          # ------------------------
+            JSON_PAYLOAD=$(jq -n \
+              --arg color "$SLACK_COLOR" \
+              --arg title "$SLACK_TITLE" \
+              --arg icon "$SLACK_ICON" \
+              --arg version_name "$VERSION_NAME" \
+              --arg build_number "$BUILD_NUMBER" \
+              --arg commit_sha "$COMMIT_SHA" \
+              --arg android_status "$ANDROID_STATUS" \
+              --arg ios_status "$IOS_STATUS" \
+              --arg tag_status "$TAG_STATUS" \
+              --arg transifex_status "$TRANSIFEX_STATUS" \
+              --arg task_list "$TASK_LIST_MRKDWN" \
+              --arg workflow_url "$WORKFLOW_URL" \
+              '{
+                "username": "Mobile Dev Team",
+                "icon_emoji": ":iphone:",
+                "text": "\($icon) \($title)",  
+                "attachments": [{
+                  "color": $color,
+                  "blocks": (
+                    [
+                      { "type": "section", "text": { "type": "mrkdwn", "text": "*Job Details:*\n>*Android Build*: \($android_status)\n>*iOS Build*: \($ios_status)\n>*Transifex Upload*: \($transifex_status) \n>*Version Tag Status*: \($tag_status)" } }
+                    ]
+                    + (if $task_list != "" then
+                      [
+                        { "type": "divider" },
+                        { "type": "section", "text": { "type": "mrkdwn", "text": "*The following tasks are included:*\n\($task_list)" } }
+                      ]
+                      else [] end)
+                    + [
+                        { "type": "divider" },
+                        { "type": "section", "text": { "type": "mrkdwn", "text": "*Build Details:*\n>Version: \($version_name)\n>Build: \($build_number)\n>Reference Commit: \($commit_sha)" } },
+                        { "type": "actions", "elements": [
+                        { "type": "button",
+                          "text": { "type": "plain_text", "text": "View Workflow Run" },
+                          "url": $workflow_url
+                        }
+                      ]}
+                    ]
+                    )
+                  }]
+              }')
+          fi
+
+          echo "Generated JSON Payload for Slack:"
+          echo "$JSON_PAYLOAD"
+
+          # -----------------------------------
+          # 4. Export JSON Payload for Slack
+          # -----------------------------------
+          EOF_MARKER=$(head -c 16 /dev/urandom | od -An -t x | tr -d ' ')
+          echo "payload<<$EOF_MARKER" >> $GITHUB_OUTPUT
+          echo "$JSON_PAYLOAD" >> $GITHUB_OUTPUT
+          echo "$EOF_MARKER" >> $GITHUB_OUTPUT
+      - name: Send Slack Notification
+        if: ${{( needs.check_changes_and_prepare_version.outputs.has_changes == 'false' || (needs.internal_android.result != 'cancelled' && needs.internal_android.result != 'skipped') || (needs.internal_ios.result != 'cancelled' && needs.internal_ios.result != 'skipped'))}}
+        uses: slackapi/slack-github-action@v2.1.1
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: webhook-trigger
+          payload: ${{ steps.slack_message.outputs.payload }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
