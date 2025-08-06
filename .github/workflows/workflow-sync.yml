@@ -12,8 +12,9 @@ env:
   # levin-riegner/warm-flutter
   # levin-riegner/lodge-flutter
   # Repositories to Sync
+  # Global-Poverty-Project/Global-Citizen-Mobile-Flutter
   REPOSITORIES: |
-    Global-Poverty-Project/Global-Citizen-Mobile-Flutter
+    # Add your repositories here, one per line
   # Files to Sync
   WORKFLOW_FILES: |
     internal.workflow.yml
